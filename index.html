@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Симулятор Родителя: Ультра-Сложный Режим</title>
+    <title>Симулятор Папы: подмени жену</title>
     <style>
-        /* Здесь начинается дизайн (CSS) */
+        /* CSS остался без изменений, чтобы сосредоточиться на логике */
         body { 
             display: flex; 
             flex-direction: column; 
@@ -18,7 +18,7 @@
             overflow: hidden; 
             user-select: none; 
             -webkit-user-select: none;
-            transition: background-color 0.5s ease; /* Плавная смена фона */
+            transition: background-color 0.5s ease;
         }
         .cradle-container {
             position: relative;
@@ -33,7 +33,6 @@
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            /* СТАРОЕ: transition: transform 0.1s ease; */
             cursor: pointer;
             border: 5px solid #e0e0e0;
         }
@@ -67,69 +66,135 @@
             background-color: #4CAF50;
             transition: width 0.2s, background-color 0.5s;
         }
-        .end-button { 
+        .action-button { 
             padding: 15px 30px; 
             font-size: 18px; 
-            background-color: #2196F3; 
             color: white; 
             border: none; 
             border-radius: 25px; 
             cursor: pointer; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            /* Стили для кнопки "Старт" */
+            background-color: #4CAF50; 
         }
-        .end-button:hover { 
-            background-color: #1976D2; 
+        .action-button.end-game {
+            /* Стили для кнопки "Призвать Маму" */
+            background-color: #f44336; 
+        }
+        #soundToggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        #soundToggle:hover {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
 
-    <div class="timer" id="timer">Вы продержались: 00:00</div>
+    <button id="soundToggle">🔊</button> 
+
+    <div class="timer" id="timer">Нажмите Старт</div>
     
     <div class="status-bar">
         <div class="anxiety-fill" id="anxietyBar"></div>
     </div>
 
     <div class="cradle-container">
-        <div class="cradle" id="cradle">
+        <div class="cradle" id="cradle" style="pointer-events: none;">
             <img id="baby" src="baby_happy.png" alt="Baby">
         </div>
     </div>
 
-    <button class="end-button" id="endButton">Призвать Мать</button>
+    <button class="action-button" id="mainActionButton">Старт!</button>
 
     <script>
-        /* Здесь начинается логика (JavaScript) */
+        /* --- ЗВУКОВАЯ СЕКЦИЯ --- */
+        let isSoundOn = true;
+        const soundHappy = new Audio('happy.mp3');
+        const soundCrying = new Audio('crying.mp3');
+        soundCrying.loop = true; 
+        const soundRock = new Audio('rock_cradle.mp3');
+
+        function playSound(audioObject) {
+            if (isSoundOn) {
+                audioObject.currentTime = 0;
+                // ВАЖНО: .catch() помогает обойти блокировку автовоспроизведения в браузерах
+                audioObject.play().catch(e => console.error("Ошибка воспроизведения звука:", e));
+            }
+        }
+
+        function stopSound(audioObject) {
+            audioObject.pause();
+            audioObject.currentTime = 0;
+        }
+
+        const soundToggleButton = document.getElementById('soundToggle');
+        soundToggleButton.addEventListener('click', () => {
+            isSoundOn = !isSoundOn;
+            soundToggleButton.textContent = isSoundOn ? '🔊' : '🔇';
+            
+            if (!isSoundOn) {
+                stopSound(soundCrying);
+            } else if (anxietyLevel >= 50) {
+                playSound(soundCrying);
+            }
+        });
+        /* ------------------------- */
+
+
+        /* --- ЛОГИКА ИГРЫ --- */
         let anxietyLevel = 0;
         let totalTime = 0;
         let calmTime = 0;
         let cryingTime = 0;
         let timerInterval;
+        let isCrying = false;
+        let isGameRunning = false; // НОВЫЙ ФЛАГ
+
+        const CRYING_LIMIT = 50; // НОВОЕ: Лимит времени плача в секундах
         
-        // --- НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ УПРАВЛЕНИЯ ТЕМПОМ ---
-        const BASE_ANXIETY_GAIN = 2; // Базовая прибавка беспокойства
-        let currentAnxietyGain = BASE_ANXIETY_GAIN; // Текущая прибавка
-        // ----------------------------------------------
+        const BASE_ANXIETY_GAIN = 5; 
+        const MAX_ANXIETY_GAIN = 10; 
+        let currentAnxietyGain = BASE_ANXIETY_GAIN; 
         
         const cradle = document.getElementById('cradle');
         const baby = document.getElementById('baby');
         const timerDisplay = document.getElementById('timer');
-        const endButton = document.getElementById('endButton');
+        const mainActionButton = document.getElementById('mainActionButton');
         const anxietyBar = document.getElementById('anxietyBar');
         const body = document.body;
 
         function updateCradle() {
-            // Обновляем полоску
             anxietyBar.style.width = anxietyLevel + "%";
             
             if (anxietyLevel < 50) {
                 baby.src = "baby_happy.png"; 
                 body.style.backgroundColor = "#f0f0f0";
                 anxietyBar.style.backgroundColor = "#4CAF50"; 
+                
+                if (isCrying) { 
+                    stopSound(soundCrying);
+                    playSound(soundHappy);
+                    isCrying = false;
+                }
+                
             } else {
                 baby.src = "baby_crying.png"; 
                 body.style.backgroundColor = "#ffebee"; 
                 anxietyBar.style.backgroundColor = "#f44336"; 
+                
+                if (!isCrying) { 
+                    playSound(soundCrying);
+                    isCrying = true;
+                }
             }
         }
 
@@ -139,6 +204,12 @@
                 calmTime++;
             } else {
                 cryingTime++;
+                
+                // *** НОВАЯ ЛОГИКА: ПРОВЕРКА ЛИМИТА ПЛАЧА ***
+                if (cryingTime >= CRYING_LIMIT) {
+                    endGame("failure");
+                    return; // Выходим, чтобы не продолжать игру
+                }
             }
 
             const minutes = Math.floor(totalTime / 60).toString().padStart(2, '0');
@@ -146,72 +217,84 @@
             timerDisplay.textContent = `Вы продержались: ${minutes}:${seconds}`;
         }
 
-        // Клик по колыбели
         cradle.addEventListener('click', () => {
-            // Снижаем беспокойство
+            if (!isGameRunning) return; // Игнорируем клики, если игра не идет
+
+            playSound(soundRock); 
             anxietyLevel = Math.max(0, anxietyLevel - 10);
             
-            // --- НОВОЕ: УСКОРЕНИЕ БЕСПОКОЙСТВА ---
-            currentAnxietyGain *= 1.2; 
-            // Максимальный прирост можно ограничить, например, до 80 (если нужно)
-            // currentAnxietyGain = Math.min(80, currentAnxietyGain); 
-            console.log("Новый прирост беспокойства:", currentAnxietyGain);
-            // --------------------------------------
-            
-            // --- НОВОЕ: АНИМАЦИЯ НА 2 СЕКУНДЫ (Сложная CSS анимация заменена на плавный поворот) ---
-            // Устанавливаем плавный переход на 2 секунды
+            currentAnxietyGain *= 2; 
+            currentAnxietyGain = Math.min(MAX_ANXIETY_GAIN, currentAnxietyGain);
+
             cradle.style.transition = 'transform 2s ease-in-out';
-            
-            // Начинаем качание
             cradle.style.transform = 'rotate(-5deg)'; 
             
-            // Через 1 секунду меняем наклон
             setTimeout(() => {
                 cradle.style.transform = 'rotate(5deg)';
-            }, 1000); // 1 секунда
+            }, 1000); 
             
-            // Через 2 секунды возвращаем в центр и отключаем длинный transition
             setTimeout(() => {
                 cradle.style.transform = 'rotate(0deg)';
-                cradle.style.transition = 'none'; // Отключаем, чтобы следующие клики не ждали 2 секунды
-            }, 2000); // 2 секунды
+                cradle.style.transition = 'none'; 
+            }, 2000); 
 
             updateCradle();
         });
 
         // Запуск игры
         function startGame() {
+            isGameRunning = true;
+            cradle.style.pointerEvents = 'auto'; // Активируем клик по колыбели
+            mainActionButton.textContent = "Призвать Маму"; // Меняем текст кнопки
+            mainActionButton.classList.add('end-game'); // Меняем стиль кнопки
+            
             timerInterval = setInterval(() => {
-                // Используем динамическое значение currentAnxietyGain
                 anxietyLevel = Math.min(100, anxietyLevel + currentAnxietyGain); 
                 updateCradle();
                 updateTimer();
             }, 1000);
         }
 
-        // Конец игры
-        function endGame() {
+        // Конец игры (с причиной)
+        function endGame(reason) {
             clearInterval(timerInterval);
+            isGameRunning = false;
+            cradle.style.pointerEvents = 'none'; // Деактивируем клик
+            stopSound(soundCrying);
+            
             const successRate = totalTime > 0 ? (calmTime / totalTime) * 100 : 0;
             let achievement = "";
+            let endMessage = "";
 
-            if (successRate > 90) {
-                achievement = "🏆 Отец Года 2025! (Читер?)";
-            } else if (successRate > 70) {
-                achievement = "🌟 Мастер Дзен: Ребенок доволен!";
-            } else if (successRate > 50) {
-                achievement = "😐 Старательный родитель. Средняя сноровка.";
+            if (reason === "failure") {
+                endMessage = `ПОРАЖЕНИЕ! Ребенок плакал ${CRYING_LIMIT} секунд подряд!`;
             } else {
-                achievement = "👮‍♂️ Соседи вызвали полицию. Наймите няню.";
+                endMessage = "Смена окончена. Расслабьтесь.";
             }
 
-            alert(`Игра окончена!\n\nТишина: ${successRate.toFixed(0)}%\nВаше звание: ${achievement}`);
+            if (successRate > 90) {
+                achievement = "🏆 Отец Года 2026!";
+            } else if (successRate > 70) {
+                achievement = "🌟 Мастер Отец: Ребенок доволен!";
+            } else if (successRate > 50) {
+                achievement = "😐 Вы старались! Средняя сноровка, но...";
+            } else {
+                achievement = "🚨 Соседи вызвали полицию. У вас есть 15 суток подумать о своем поведении.";
+            }
+
+            alert(`${endMessage}\n\nТишина: ${successRate.toFixed(0)}%\nВаше звание: ${achievement}`);
             location.reload(); 
         }
 
-        endButton.addEventListener('click', endGame);
-        
-        startGame();
+        // Обработчик нажатия главной кнопки
+        mainActionButton.addEventListener('click', () => {
+            if (!isGameRunning) {
+                startGame();
+            } else {
+                // Если игра запущена, кнопка вызывает конец игры
+                endGame("manual"); 
+            }
+        });
     </script>
 </body>
 </html>
